@@ -537,16 +537,19 @@ import (
 
 	"testing"
 	"testing/internal/testdeps"
-
+/*
 	// for init I assume
 	_ "github.com/joomcode/api/src/logistics/app/logisticsapp/addressvalidation/yunexpressvalidation"
 
 	_test0 "github.com/joomcode/api/src/common/logistics/trackingnumber"
 	_test3 "github.com/joomcode/api/src/joom/app/common/settings"
 	_xtest2 "github.com/joomcode/api/src/logistics/app/logisticsapp/addressvalidation/yunexpressvalidation_test"
+*/
+%s
 )
 
 var tests = []testing.InternalTest{
+/*
 	{"TestTrackingTestSuite", _test0.TestTrackingTestSuite},
 	{"TestPoolTestSuite", _test0.TestPoolTestSuite},
     {"TestValidateAddress", _xtest2.TestValidateAddress},
@@ -564,6 +567,8 @@ var tests = []testing.InternalTest{
 	{"TestRemovePrimitive", _test3.TestRemovePrimitive},
 	{"TestRemoveObject", _test3.TestRemoveObject},
 	{"TestRemoveNested", _test3.TestRemoveNested},
+*/
+%s
 }
 
 var benchmarks = []testing.InternalBenchmark{}
@@ -587,6 +592,25 @@ func main() {
 
 // go test -x -v -vet=off -failfast -count=1 -tags=debug github.com/joomcode/api/src/common/logistics/trackingnumber/... github.com/joomcode/api/src/logistics/app/logisticsapp/addressvalidation/yunexpressvalidation/... github.com/joomcode/api/src/joom/app/common/settings/... -c -o test.bin && ./test.bin-combined -test.v
 
+// TODO REFACTOR
+func importBlock(p2import map[string]string) string {
+	result := ""
+	for k, v := range p2import {
+		result = result + fmt.Sprintf("\t%s %q\n", k, v)
+	}
+	return result
+}
+
+func testBlock(p2testList map[string][]string) string{
+	result := ""
+	for k, vs := range p2testList {
+		for _, v := range vs {
+			result = result + fmt.Sprintf("\t{%q, %s.%s},\n", v, k, v)
+		}
+	}
+	return result
+}
+
 func compileMultipleTests(pkgs []*load.Package) {
 	fmt.Printf("Got %d packages\n", len(pkgs))
 	for _, p := range pkgs {
@@ -595,6 +619,9 @@ func compileMultipleTests(pkgs []*load.Package) {
 	}
 
 	var combined_pmain *load.Package
+	p2testList := make(map[string][]string)
+	p2import := make(map[string]string)
+
 	for p_index, p := range pkgs {
 		if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 			fmt.Printf("\n>>>>>>Skipping %d %s\n", p_index, p.Name)
@@ -603,6 +630,10 @@ func compileMultipleTests(pkgs []*load.Package) {
 		var b work.Builder
 		b.Init()
 		pmain, ptest, pxtest, err := load.TestPackagesFor(p, nil)
+		tf , err := load.LoadTestFuncs(ptest)
+		if err != nil {
+			panic(err)
+		}
 		if combined_pmain == nil {
 			combined_pmain = pmain
 		} else {
@@ -610,6 +641,20 @@ func compileMultipleTests(pkgs []*load.Package) {
 			combined_pmain.Internal.Imports = append(combined_pmain.Internal.Imports, pmain.Internal.Imports...)
 			combined_pmain.Internal.RawImports = append(combined_pmain.Internal.RawImports, pmain.Internal.RawImports...)
 		}
+		for i := range tf.Tests {
+			packageKind := tf.Tests[i].Package
+			key := packageKind + fmt.Sprintf("_%d", p_index)
+			switch packageKind {
+			case "_test":
+				p2import[key] = ptest.ImportPath
+			case "_xtest":
+				p2import[key] = pxtest.ImportPath
+			default:
+				panic(packageKind)
+			}
+			p2testList[key] = append(p2testList[key], tf.Tests[i].Name)
+		}
+		continue
 		fmt.Println("\n>>>>>>")
 		fmt.Printf("pmain: %#v\n", pmain)
 		fmt.Println(b)
@@ -619,13 +664,13 @@ func compileMultipleTests(pkgs []*load.Package) {
 		fmt.Printf("pxtest: %#v\n", pxtest)
 		fmt.Println("\n>>>>>>")
 		fmt.Printf("err: %#v\n", err)
-
-		tf , err := load.LoadTestFuncs(ptest)
-		if err != nil {
-			panic(err)
-		}
 		fmt.Println("\n>>>>>>")
-		fmt.Printf("err: %#v\n", tf.Tests)
+		fmt.Printf("tests: %#v\n", tf.Tests)
+		fmt.Println("\n>>>>>>")
+		fmt.Printf("maps: %#v\n%#v\n", p2import, p2testList)
+		fmt.Println("\n>>>>>>")
+		fmt.Printf("\n>>>>> import block: %s", importBlock(p2import))
+		fmt.Printf("\n>>>>> test block: %s", testBlock(p2testList))
 
 		var elem string
 		if p.ImportPath == "command-line-arguments" {
@@ -699,8 +744,12 @@ func compileMultipleTests(pkgs []*load.Package) {
 		// writeTestmain writes _testmain.go,
 		// using the test description gathered in t.
 		datatm := makeCombinedTestMain()
+		datatm = []byte(fmt.Sprintf((string)(datatm), importBlock(p2import), testBlock(p2testList)))
 		combined_pmain.Internal.TestmainGo = &datatm
 		if err := ioutil.WriteFile(testDir+"_testmain.go", *combined_pmain.Internal.TestmainGo, 0666); err != nil {
+			panic(err)
+		}
+		if err := ioutil.WriteFile("combined_testmain.go", *combined_pmain.Internal.TestmainGo, 0666); err != nil {
 			panic(err)
 		}
 	}
