@@ -527,7 +527,7 @@ var testVetFlags = []string{
 	// "-unusedresult",
 }
 
-func makeCombinedTestMain() {
+func makeCombinedTestMain() []byte {
 	result := `
 package main
 
@@ -538,13 +538,17 @@ import (
 	"testing"
 	"testing/internal/testdeps"
 
+	// for init I assume
+	_ "github.com/joomcode/api/src/logistics/app/logisticsapp/addressvalidation/yunexpressvalidation"
 
-	//_test "github.com/joomcode/api/src/common/logistics/trackingnumber"
+	_test0 "github.com/joomcode/api/src/common/logistics/trackingnumber"
+	_xtest2 "github.com/joomcode/api/src/logistics/app/logisticsapp/addressvalidation/yunexpressvalidation_test"
 )
 
 var tests = []testing.InternalTest{
-	//{"TestTrackingTestSuite", _test.TestTrackingTestSuite},
-	//{"TestPoolTestSuite", _test.TestPoolTestSuite},
+	{"TestTrackingTestSuite", _test0.TestTrackingTestSuite},
+	{"TestPoolTestSuite", _test0.TestPoolTestSuite},
+    {"TestValidateAddress", _xtest2.TestValidateAddress},
 }
 
 var benchmarks = []testing.InternalBenchmark{}
@@ -563,6 +567,7 @@ func main() {
 	os.Exit(m.Run())
 }
 `
+	return []byte(result)
 }
 
 func compileMultipleTests(pkgs []*load.Package) {
@@ -572,83 +577,94 @@ func compileMultipleTests(pkgs []*load.Package) {
 		fmt.Printf("%#v\n", *p)
 	}
 
+	var combined_pmain *load.Package
 	for p_index, p := range pkgs {
+		if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+			fmt.Printf("\n>>>>>>Skipping %d %s\n", p_index, p.Name)
+			continue
+		}
 		var b work.Builder
 		b.Init()
-		if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
-			pmain, ptest, pxtest, err := load.TestPackagesFor(p, nil)
-			fmt.Println("\n>>>>>>")
-			fmt.Printf("pmain: %#v\n", pmain)
-			fmt.Println("\n>>>>>>")
-			fmt.Printf("ptest: %#v\n", ptest)
-			fmt.Println("\n>>>>>>")
-			fmt.Printf("pxtest: %#v\n", pxtest)
-			fmt.Println("\n>>>>>>")
-			fmt.Printf("err: %#v\n", err)
+		pmain, ptest, pxtest, err := load.TestPackagesFor(p, nil)
+		if combined_pmain == nil {
+			combined_pmain = pmain
+		} else {
+			combined_pmain.Imports = append(combined_pmain.Imports, pmain.Imports...)
+			combined_pmain.Internal.Imports = append(combined_pmain.Internal.Imports, pmain.Internal.Imports...)
+			combined_pmain.Internal.RawImports = append(combined_pmain.Internal.RawImports, pmain.Internal.RawImports...)
+		}
+		fmt.Println("\n>>>>>>")
+		fmt.Printf("pmain: %#v\n", pmain)
+		fmt.Println(b)
+		fmt.Println("\n>>>>>>")
+		fmt.Printf("ptest: %#v\n", ptest)
+		fmt.Println("\n>>>>>>")
+		fmt.Printf("pxtest: %#v\n", pxtest)
+		fmt.Println("\n>>>>>>")
+		fmt.Printf("err: %#v\n", err)
 
-			tf , err := load.LoadTestFuncs(ptest)
-			if err != nil {
+		tf , err := load.LoadTestFuncs(ptest)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("\n>>>>>>")
+		fmt.Printf("err: %#v\n", tf.Tests)
+
+		var elem string
+		if p.ImportPath == "command-line-arguments" {
+			elem = p.Name
+		} else {
+			_, elem = path.Split(p.ImportPath)
+		}
+		testBinary := elem + ".test"
+
+		testDir := b.NewObjdir()
+		if err := b.Mkdir(testDir); err != nil {
+			 panic(err)
+		}
+
+		pmain.Dir = testDir
+		pmain.Internal.OmitDebug = !testC && !testNeedBinary
+
+		if !cfg.BuildN {
+			// writeTestmain writes _testmain.go,
+			// using the test description gathered in t.
+			if err := ioutil.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
 				panic(err)
 			}
-			fmt.Println("\n>>>>>>")
-			fmt.Printf("err: %#v\n", tf.Tests)
-
-			var elem string
-			if p.ImportPath == "command-line-arguments" {
-				elem = p.Name
-			} else {
-				_, elem = path.Split(p.ImportPath)
+			if err := ioutil.WriteFile(fmt.Sprintf("%d_testmain.go", p_index), *pmain.Internal.TestmainGo, 0666); err != nil {
+				panic(err)
 			}
-			testBinary := elem + ".test"
+		}
 
-			testDir := b.NewObjdir()
-			if err := b.Mkdir(testDir); err != nil {
-				 panic(err)
-			}
+		// Set compile objdir to testDir we've already created,
+		// so that the default file path stripping applies to _testmain.go.
+		b.CompileAction(work.ModeBuild, work.ModeBuild, pmain).Objdir = testDir
 
-			pmain.Dir = testDir
-			pmain.Internal.OmitDebug = !testC && !testNeedBinary
-
-			if !cfg.BuildN {
-				// writeTestmain writes _testmain.go,
-				// using the test description gathered in t.
-				if err := ioutil.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
-					panic(err)
-				}
-				if err := ioutil.WriteFile(fmt.Sprintf("%d_testmain.go", p_index), *pmain.Internal.TestmainGo, 0666); err != nil {
-					panic(err)
+		a := b.LinkAction(work.ModeBuild, work.ModeBuild, pmain)
+		a.Target = testDir + testBinary + cfg.ExeSuffix
+		buildAction := a
+		//var installAction, cleanAction *work.Action
+		if testC || testNeedBinary {
+			// -c or profiling flag: create action to copy binary to ./test.out.
+			target := filepath.Join(base.Cwd, testBinary+cfg.ExeSuffix)
+			if testO != "" {
+				target = testO+fmt.Sprintf("-%d", p_index)
+				if !filepath.IsAbs(target) {
+					target = filepath.Join(base.Cwd, target)
 				}
 			}
-
-			// Set compile objdir to testDir we've already created,
-			// so that the default file path stripping applies to _testmain.go.
-			b.CompileAction(work.ModeBuild, work.ModeBuild, pmain).Objdir = testDir
-
-			a := b.LinkAction(work.ModeBuild, work.ModeBuild, pmain)
-			a.Target = testDir + testBinary + cfg.ExeSuffix
-			buildAction := a
-			//var installAction, cleanAction *work.Action
-			if testC || testNeedBinary {
-				// -c or profiling flag: create action to copy binary to ./test.out.
-				target := filepath.Join(base.Cwd, testBinary+cfg.ExeSuffix)
-				if testO != "" {
-					target = testO+fmt.Sprintf("-%d", p_index)
-					if !filepath.IsAbs(target) {
-						target = filepath.Join(base.Cwd, target)
-					}
-				}
-				pmain.Target = target
-				installAction := &work.Action{
-					Mode:    "test build",
-					Func:    work.BuildInstallFunc,
-					Deps:    []*work.Action{buildAction},
-					Package: pmain,
-					Target:  target,
-				}
-				root := &work.Action{Mode: "go test", Deps: []*work.Action{installAction}}
-				b.Do(root)
-				//runAction = installAction // make sure runAction != nil even if not running test
+			pmain.Target = target
+			installAction := &work.Action{
+				Mode:    "test build",
+				Func:    work.BuildInstallFunc,
+				Deps:    []*work.Action{buildAction},
+				Package: pmain,
+				Target:  target,
 			}
+			root := &work.Action{Mode: "go test", Deps: []*work.Action{installAction}}
+			b.Do(root)
+			//runAction = installAction // make sure runAction != nil even if not running test
 		}
 	}
 }
