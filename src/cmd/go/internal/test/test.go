@@ -667,6 +667,55 @@ func compileMultipleTests(pkgs []*load.Package) {
 			//runAction = installAction // make sure runAction != nil even if not running test
 		}
 	}
+	var b work.Builder
+	b.Init()
+
+	testDir := b.NewObjdir()
+	if err := b.Mkdir(testDir); err != nil {
+		panic(err)
+	}
+
+	combined_pmain.Dir = testDir
+	combined_pmain.Internal.OmitDebug = !testC && !testNeedBinary
+
+	if !cfg.BuildN {
+		// writeTestmain writes _testmain.go,
+		// using the test description gathered in t.
+		datatm := makeCombinedTestMain()
+		combined_pmain.Internal.TestmainGo = &datatm
+		if err := ioutil.WriteFile(testDir+"_testmain.go", *combined_pmain.Internal.TestmainGo, 0666); err != nil {
+			panic(err)
+		}
+	}
+
+	// Set compile objdir to testDir we've already created,
+	// so that the default file path stripping applies to _testmain.go.
+	b.CompileAction(work.ModeBuild, work.ModeBuild, combined_pmain).Objdir = testDir
+
+	a := b.LinkAction(work.ModeBuild, work.ModeBuild, combined_pmain)
+	a.Target = testDir + "testbin" + cfg.ExeSuffix
+	buildAction := a
+	//var installAction, cleanAction *work.Action
+	if testC || testNeedBinary {
+		// -c or profiling flag: create action to copy binary to ./test.out.
+		target := filepath.Join(base.Cwd, "testbin"+cfg.ExeSuffix)
+		if testO != "" {
+			target = testO + "-combined"
+			if !filepath.IsAbs(target) {
+				target = filepath.Join(base.Cwd, target)
+			}
+		}
+		combined_pmain.Target = target
+		installAction := &work.Action{
+			Mode:    "test build",
+			Func:    work.BuildInstallFunc,
+			Deps:    []*work.Action{buildAction},
+			Package: combined_pmain,
+			Target:  target,
+		}
+		root := &work.Action{Mode: "go test", Deps: []*work.Action{installAction}}
+		b.Do(root)
+	}
 }
 
 func runTest(cmd *base.Command, args []string) {
