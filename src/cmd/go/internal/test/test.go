@@ -527,6 +527,132 @@ var testVetFlags = []string{
 	// "-unusedresult",
 }
 
+func makeCombinedTestMain() {
+	result := `
+package main
+
+import (
+
+	"os"
+
+	"testing"
+	"testing/internal/testdeps"
+
+
+	//_test "github.com/joomcode/api/src/common/logistics/trackingnumber"
+)
+
+var tests = []testing.InternalTest{
+	//{"TestTrackingTestSuite", _test.TestTrackingTestSuite},
+	//{"TestPoolTestSuite", _test.TestPoolTestSuite},
+}
+
+var benchmarks = []testing.InternalBenchmark{}
+var examples = []testing.InternalExample{}
+
+/*
+func init() {
+	testdeps.ImportPath = "github.com/joomcode/api/src/common/logistics/trackingnumber"
+}
+*/
+
+
+
+func main() {
+	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, examples)
+	os.Exit(m.Run())
+}
+`
+}
+
+func compileMultipleTests(pkgs []*load.Package) {
+	fmt.Printf("Got %d packages\n", len(pkgs))
+	for _, p := range pkgs {
+		fmt.Println("\n>>>>>>")
+		fmt.Printf("%#v\n", *p)
+	}
+
+	for p_index, p := range pkgs {
+		var b work.Builder
+		b.Init()
+		if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
+			pmain, ptest, pxtest, err := load.TestPackagesFor(p, nil)
+			fmt.Println("\n>>>>>>")
+			fmt.Printf("pmain: %#v\n", pmain)
+			fmt.Println("\n>>>>>>")
+			fmt.Printf("ptest: %#v\n", ptest)
+			fmt.Println("\n>>>>>>")
+			fmt.Printf("pxtest: %#v\n", pxtest)
+			fmt.Println("\n>>>>>>")
+			fmt.Printf("err: %#v\n", err)
+
+			tf , err := load.LoadTestFuncs(ptest)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Println("\n>>>>>>")
+			fmt.Printf("err: %#v\n", tf.Tests)
+
+			var elem string
+			if p.ImportPath == "command-line-arguments" {
+				elem = p.Name
+			} else {
+				_, elem = path.Split(p.ImportPath)
+			}
+			testBinary := elem + ".test"
+
+			testDir := b.NewObjdir()
+			if err := b.Mkdir(testDir); err != nil {
+				 panic(err)
+			}
+
+			pmain.Dir = testDir
+			pmain.Internal.OmitDebug = !testC && !testNeedBinary
+
+			if !cfg.BuildN {
+				// writeTestmain writes _testmain.go,
+				// using the test description gathered in t.
+				if err := ioutil.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
+					panic(err)
+				}
+				if err := ioutil.WriteFile(fmt.Sprintf("%d_testmain.go", p_index), *pmain.Internal.TestmainGo, 0666); err != nil {
+					panic(err)
+				}
+			}
+
+			// Set compile objdir to testDir we've already created,
+			// so that the default file path stripping applies to _testmain.go.
+			b.CompileAction(work.ModeBuild, work.ModeBuild, pmain).Objdir = testDir
+
+			a := b.LinkAction(work.ModeBuild, work.ModeBuild, pmain)
+			a.Target = testDir + testBinary + cfg.ExeSuffix
+			buildAction := a
+			//var installAction, cleanAction *work.Action
+			if testC || testNeedBinary {
+				// -c or profiling flag: create action to copy binary to ./test.out.
+				target := filepath.Join(base.Cwd, testBinary+cfg.ExeSuffix)
+				if testO != "" {
+					target = testO+fmt.Sprintf("-%d", p_index)
+					if !filepath.IsAbs(target) {
+						target = filepath.Join(base.Cwd, target)
+					}
+				}
+				pmain.Target = target
+				installAction := &work.Action{
+					Mode:    "test build",
+					Func:    work.BuildInstallFunc,
+					Deps:    []*work.Action{buildAction},
+					Package: pmain,
+					Target:  target,
+				}
+				root := &work.Action{Mode: "go test", Deps: []*work.Action{installAction}}
+				b.Do(root)
+				//runAction = installAction // make sure runAction != nil even if not running test
+			}
+		}
+	}
+}
+
 func runTest(cmd *base.Command, args []string) {
 	modload.LoadTests = true
 
@@ -543,6 +669,8 @@ func runTest(cmd *base.Command, args []string) {
 	}
 
 	if testC && len(pkgs) != 1 {
+		compileMultipleTests(pkgs)
+		return
 		base.Fatalf("cannot use -c flag with multiple packages")
 	}
 	if testO != "" && len(pkgs) != 1 {

@@ -234,6 +234,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"testing/internal/testdeps"
 	"time"
 )
 
@@ -995,6 +996,15 @@ type testDeps interface {
 func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) *M {
 	return &M{
 		deps:       deps,
+		tests:      tests,
+		benchmarks: benchmarks,
+		examples:   examples,
+	}
+}
+
+func MainStartNoDeps(tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) *M {
+	return &M{
+		deps: testdeps.TestDeps{},
 		tests:      tests,
 		benchmarks: benchmarks,
 		examples:   examples,

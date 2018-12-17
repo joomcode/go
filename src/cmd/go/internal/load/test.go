@@ -403,6 +403,10 @@ type coverInfo struct {
 	Vars    map[string]*CoverVar
 }
 
+func LoadTestFuncs(ptest* Package) (*testFuncs, error) {
+	return loadTestFuncs(ptest)
+}
+
 // loadTestFuncs returns the testFuncs describing the tests that will be run.
 func loadTestFuncs(ptest *Package) (*testFuncs, error) {
 	t := &testFuncs{
