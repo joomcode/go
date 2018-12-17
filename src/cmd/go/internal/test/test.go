@@ -542,6 +542,7 @@ import (
 	_ "github.com/joomcode/api/src/logistics/app/logisticsapp/addressvalidation/yunexpressvalidation"
 
 	_test0 "github.com/joomcode/api/src/common/logistics/trackingnumber"
+	_test3 "github.com/joomcode/api/src/joom/app/common/settings"
 	_xtest2 "github.com/joomcode/api/src/logistics/app/logisticsapp/addressvalidation/yunexpressvalidation_test"
 )
 
@@ -549,6 +550,20 @@ var tests = []testing.InternalTest{
 	{"TestTrackingTestSuite", _test0.TestTrackingTestSuite},
 	{"TestPoolTestSuite", _test0.TestPoolTestSuite},
     {"TestValidateAddress", _xtest2.TestValidateAddress},
+	{"TestUpdateEmpty", _test3.TestUpdateEmpty},
+	{"TestInsertPrimitive", _test3.TestInsertPrimitive},
+	{"TestUpdatePrimitive", _test3.TestUpdatePrimitive},
+	{"TestInsertObject", _test3.TestInsertObject},
+	{"TestUpdateObject", _test3.TestUpdateObject},
+	{"TestInsertNestedPrimitive1", _test3.TestInsertNestedPrimitive1},
+	{"TestInsertNestedPrimitive2", _test3.TestInsertNestedPrimitive2},
+	{"TestUpdateNestedPrimitive", _test3.TestUpdateNestedPrimitive},
+	{"TestUpdateMulti", _test3.TestUpdateMulti},
+	{"TestEmptyPath", _test3.TestEmptyPath},
+	{"TestUpdateNestedNonObject", _test3.TestUpdateNestedNonObject},
+	{"TestRemovePrimitive", _test3.TestRemovePrimitive},
+	{"TestRemoveObject", _test3.TestRemoveObject},
+	{"TestRemoveNested", _test3.TestRemoveNested},
 }
 
 var benchmarks = []testing.InternalBenchmark{}
@@ -569,6 +584,8 @@ func main() {
 `
 	return []byte(result)
 }
+
+// go test -x -v -vet=off -failfast -count=1 -tags=debug github.com/joomcode/api/src/common/logistics/trackingnumber/... github.com/joomcode/api/src/logistics/app/logisticsapp/addressvalidation/yunexpressvalidation/... github.com/joomcode/api/src/joom/app/common/settings/... -c -o test.bin && ./test.bin-combined -test.v
 
 func compileMultipleTests(pkgs []*load.Package) {
 	fmt.Printf("Got %d packages\n", len(pkgs))
