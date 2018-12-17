@@ -15,6 +15,7 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"io/ioutil"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -209,8 +210,16 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 				return nil, nil, nil, p1.Error
 			}
 			pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
+			fmt.Printf("DEP: %s\n", p1.Name)
 		}
 	}
+	//p666 := LoadImport("github.com/joomcode/api/src/joom/app/antifraud/afcommon", "", nil, &stk, nil, 0)
+	p666 := LoadPackage("github.com/joomcode/api/src/joom/app/antifraud/afcommon", &stk)
+	if p666.Error != nil {
+		return nil, nil, nil, p666.Error
+	}
+	fmt.Printf("P666: %#v\n", p666)
+	pmain.Internal.Imports = append(pmain.Internal.Imports, p666)
 	stk.Pop()
 
 	if cover != nil && cover.Pkgs != nil {
@@ -258,9 +267,13 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		}
 	}
 	pmain.Imports = pmain.Imports[:w]
+	fmt.Printf("IMPORTS: %#v\n", pmain.Imports)
+	pmain.Imports = append(pmain.Imports, "github.com/joomcode/api/src/joom/app/antifraud/afcommon")
+	//pmain.Internal.Imports = append(pmain.Internal.Imports, LoadImport())
+	fmt.Printf("IMPORTS NEXT: %#v\n", pmain.Imports)
 	pmain.Internal.RawImports = str.StringList(pmain.Imports)
 
-	if ptest != p {
+	if ptest != p || true {
 		// We have made modifications to the package p being tested
 		// and are rebuilding p (as ptest).
 		// Arrange to rebuild all packages q such that
@@ -295,8 +308,21 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		return nil, nil, nil, err
 	}
 	pmain.Internal.TestmainGo = &data
+	fmt.Println("ORIGIN_CODE", string(*pmain.Internal.TestmainGo))
+	testMain := makeTestMain()
+	pmain.Internal.TestmainGo = &testMain
+	fmt.Println(string(testMain))
+
 
 	return pmain, ptest, pxtest, nil
+}
+
+func makeTestMain() []byte {
+	data, err := ioutil.ReadFile("/home/itroot/Desktop/INFRA-1373/_testmain.go")
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 func testImportStack(top string, p *Package, target string) []string {

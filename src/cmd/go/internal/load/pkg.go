@@ -329,6 +329,7 @@ type ImportStack []string
 
 func (s *ImportStack) Push(p string) {
 	*s = append(*s, p)
+	fmt.Printf("IS PUSH: %#v\n", *s)
 }
 
 func (s *ImportStack) Pop() {

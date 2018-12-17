@@ -515,6 +515,8 @@ var testVetFlags = []string{
 }
 
 func runTest(cmd *base.Command, args []string) {
+	fmt.Println("\n\n >>> \n\n")
+	fmt.Printf("%#v\n", args)
 	modload.LoadTests = true
 
 	pkgArgs, testArgs = testFlags(cmd.Usage, args)
@@ -529,6 +531,7 @@ func runTest(cmd *base.Command, args []string) {
 		base.Fatalf("no packages to test")
 	}
 
+	// TODO constraints
 	if testC && len(pkgs) != 1 {
 		base.Fatalf("cannot use -c flag with multiple packages")
 	}
@@ -613,9 +616,14 @@ func runTest(cmd *base.Command, args []string) {
 			}
 		}
 		sort.Strings(all)
+		fmt.Println("All packages:")
+		for i, _ := range all {
+			fmt.Println( all[i])
+		}
 
 		a := &work.Action{Mode: "go test -i"}
 		for _, p := range load.PackagesForBuild(all) {
+			//fmt.Printf("PKG: %#v\n", p)
 			if cfg.BuildToolchainName == "gccgo" && p.Standard {
 				// gccgo's standard library packages
 				// can not be reinstalled.
@@ -623,6 +631,7 @@ func runTest(cmd *base.Command, args []string) {
 			}
 			a.Deps = append(a.Deps, b.CompileAction(work.ModeInstall, work.ModeInstall, p))
 		}
+
 		b.Do(a)
 		if !testC || a.Failed {
 			return
@@ -772,6 +781,7 @@ var windowsBadWords = []string{
 func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, printAction *work.Action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
+		fmt.Printf("\n>>>CA: #%v\n", build)
 		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
 		addTestVet(b, p, run, nil)
 		print := &work.Action{Mode: "test print", Func: builderNoTest, Package: p, Deps: []*work.Action{run}}
@@ -792,7 +802,15 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 			DeclVars: declareCoverVars,
 		}
 	}
+	fmt.Printf("P: %#v\n\n", p)
 	pmain, ptest, pxtest, err := load.TestPackagesFor(p, cover)
+	//load.LoadImport()
+	for _, imp := range pmain.Internal.Imports {
+		fmt.Printf("IMP: %#v\n", imp.Name)
+	}
+	fmt.Printf("PMAIN: %#v\n\n", pmain)
+	fmt.Printf("PTEST: %#v\n\n", ptest)
+	fmt.Printf("PXTEST: %#v\n\n", pxtest)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -823,6 +841,8 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 		if err := ioutil.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
 			return nil, nil, nil, err
 		}
+		//fmt.Println(testDir+"_testmain.go\n", string(*pmain.Internal.TestmainGo))
+		//time.Sleep(time.Hour)
 	}
 
 	// Set compile objdir to testDir we've already created,
@@ -1308,7 +1328,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 		fmt.Fprintf(os.Stderr, "testcache: %s: test ID %x => %x\n", a.Package.ImportPath, id, testID)
 	}
 
-	// Load list of referenced environment variables and files
+	// Load list of referenced envi/ronment variables and files
 	// from last run of testID, and compute hash of that content.
 	data, entry, err := cache.Default().GetBytes(testID)
 	if !bytes.HasPrefix(data, testlogMagic) || data[len(data)-1] != '\n' {
