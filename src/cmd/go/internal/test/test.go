@@ -591,6 +591,14 @@ func main() {
 }
 
 // go test -x -v -vet=off -failfast -count=1 -tags=debug github.com/joomcode/api/src/common/logistics/trackingnumber/... github.com/joomcode/api/src/logistics/app/logisticsapp/addressvalidation/yunexpressvalidation/... github.com/joomcode/api/src/joom/app/common/settings/... -c -o test.bin && ./test.bin-combined -test.v
+// go test -x -v -vet=off -failfast -count=1 -tags=debug github.com/joomcode/api/src/joom/app/payment/... -c -o test.bin > /dev/null
+
+// logical fail
+// go test -x -v -vet=off -failfast -count=1 -tags=debug github.com/joomcode/api/src/logistics/... -c -o test.bin > /dev/null
+
+// compile fail
+// go test -x -v -vet=off -failfast -count=1 -tags=debug github.com/joomcode/api/src/misc/... -c -o test.bin > /dev/null
+// /tmp/go-build859563284/b001/_testmain.go:36:2: internal compiler error: conflicting package heights 16 and 19 for path "github.com/joomcode/api/src/misc/generic/timex"
 
 // TODO REFACTOR
 func importBlock(p2import map[string]string) string {
