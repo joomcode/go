@@ -545,6 +545,8 @@ var tests = []testing.InternalTest{
 %s
 }
 
+%s
+
 var benchmarks = []testing.InternalBenchmark{}
 var examples = []testing.InternalExample{}
 
@@ -555,6 +557,21 @@ func init() {
 */
 
 func main() {
+	if len(os.Args) == 1 { // FIXME right arg
+		for k := range testmap {
+			s := k + "\n"
+			os.Stderr.Write([]byte(s))
+		}
+		os.Exit(1)
+	} else if os.Args[1] != "*" {
+		testlist, ok := testmap[os.Args[1]]
+		if !ok {
+			os.Stderr.Write([]byte("No such test: " + os.Args[1] + ".\n"))
+			os.Exit(1)
+		}
+		m := testing.MainStart(testdeps.TestDeps{}, testlist, benchmarks, examples)
+		os.Exit(m.Run())
+	}
 	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, examples)
 	os.Exit(m.Run())
 }
@@ -565,8 +582,9 @@ func main() {
 // go test -x -v -vet=off -failfast -count=1 -tags=debug github.com/joomcode/api/src/common/logistics/trackingnumber/... github.com/joomcode/api/src/logistics/app/logisticsapp/addressvalidation/yunexpressvalidation/... github.com/joomcode/api/src/joom/app/common/settings/... -c -o test.bin && ./test.bin-combined -test.v
 // go test -x -v -vet=off -failfast -count=1 -tags=debug github.com/joomcode/api/src/joom/app/payment/... -c -o test.bin > /dev/null
 
-// logical fail
+// logical fail (FIXED)
 // go test -x -v -vet=off -failfast -count=1 -tags=debug github.com/joomcode/api/src/logistics/... -c -o test.bin > /dev/null
+// ./test.bin-combined 2>&1 | tail -n +2 | xargs -n1 -I% ./test.bin-combined % && echo OK
 
 // compile fail
 // go test -x -v -vet=off -failfast -count=1 -tags=debug github.com/joomcode/api/src/misc/... -c -o test.bin > /dev/null
@@ -588,6 +606,20 @@ func testBlock(p2testList map[string][]string) string{
 			result = result + fmt.Sprintf("\t{%q, %s.%s},\n", v, k, v)
 		}
 	}
+	return result
+}
+
+func testMapBlock(p2testList map[string][]string, p2import map[string]string) string{
+	result := ""
+	result = result + "var testmap = map[string][]testing.InternalTest{\n"
+	for k, vs := range p2testList {
+		result = result + fmt.Sprintf("\t%q: {\n", p2import[k])
+		for _, v := range vs {
+			result = result + fmt.Sprintf("\t\t{%q, %s.%s},\n", v, k, v)
+		}
+		result = result + "\t},\n"
+	}
+	result = result + "}\n"
 	return result
 }
 
@@ -724,7 +756,7 @@ func compileMultipleTests(pkgs []*load.Package) {
 		// writeTestmain writes _testmain.go,
 		// using the test description gathered in t.
 		datatm := makeCombinedTestMain()
-		datatm = []byte(fmt.Sprintf((string)(datatm), importBlock(p2import), testBlock(p2testList)))
+		datatm = []byte(fmt.Sprintf((string)(datatm), importBlock(p2import), testBlock(p2testList), testMapBlock(p2testList, p2import)))
 		combined_pmain.Internal.TestmainGo = &datatm
 		if err := ioutil.WriteFile(testDir+"_testmain.go", *combined_pmain.Internal.TestmainGo, 0666); err != nil {
 			panic(err)
