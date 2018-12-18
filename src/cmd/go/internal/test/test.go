@@ -537,37 +537,11 @@ import (
 
 	"testing"
 	"testing/internal/testdeps"
-/*
-	// for init I assume
-	_ "github.com/joomcode/api/src/logistics/app/logisticsapp/addressvalidation/yunexpressvalidation"
 
-	_test0 "github.com/joomcode/api/src/common/logistics/trackingnumber"
-	_test3 "github.com/joomcode/api/src/joom/app/common/settings"
-	_xtest2 "github.com/joomcode/api/src/logistics/app/logisticsapp/addressvalidation/yunexpressvalidation_test"
-*/
 %s
 )
 
 var tests = []testing.InternalTest{
-/*
-	{"TestTrackingTestSuite", _test0.TestTrackingTestSuite},
-	{"TestPoolTestSuite", _test0.TestPoolTestSuite},
-    {"TestValidateAddress", _xtest2.TestValidateAddress},
-	{"TestUpdateEmpty", _test3.TestUpdateEmpty},
-	{"TestInsertPrimitive", _test3.TestInsertPrimitive},
-	{"TestUpdatePrimitive", _test3.TestUpdatePrimitive},
-	{"TestInsertObject", _test3.TestInsertObject},
-	{"TestUpdateObject", _test3.TestUpdateObject},
-	{"TestInsertNestedPrimitive1", _test3.TestInsertNestedPrimitive1},
-	{"TestInsertNestedPrimitive2", _test3.TestInsertNestedPrimitive2},
-	{"TestUpdateNestedPrimitive", _test3.TestUpdateNestedPrimitive},
-	{"TestUpdateMulti", _test3.TestUpdateMulti},
-	{"TestEmptyPath", _test3.TestEmptyPath},
-	{"TestUpdateNestedNonObject", _test3.TestUpdateNestedNonObject},
-	{"TestRemovePrimitive", _test3.TestRemovePrimitive},
-	{"TestRemoveObject", _test3.TestRemoveObject},
-	{"TestRemoveNested", _test3.TestRemoveNested},
-*/
 %s
 }
 
@@ -579,8 +553,6 @@ func init() {
 	testdeps.ImportPath = "github.com/joomcode/api/src/common/logistics/trackingnumber"
 }
 */
-
-
 
 func main() {
 	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, examples)
