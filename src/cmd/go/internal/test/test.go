@@ -589,8 +589,9 @@ func main() {
 // compile fail
 // go test -x -v -vet=off -failfast -count=1 -tags=debug github.com/joomcode/api/src/misc/... -c -o test.bin > /dev/null
 // /tmp/go-build859563284/b001/_testmain.go:36:2: internal compiler error: conflicting package heights 16 and 19 for path "github.com/joomcode/api/src/misc/generic/timex"
+// see: https://github.com/bazelbuild/rules_go/issues/1772
 
-// TODO REFACTOR
+// TODO REFACTOR USE TEMPLATE
 func importBlock(p2import map[string]string) string {
 	result := ""
 	for k, v := range p2import {
