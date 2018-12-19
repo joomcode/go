@@ -200,6 +200,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 	for _, d := range LinkerDeps(p) {
 		deps = append(deps, d)
 	}
+	fmt.Println("Linker deps: ", deps)
 	for _, dep := range deps {
 		if dep == ptest.ImportPath {
 			pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)

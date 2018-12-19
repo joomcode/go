@@ -634,6 +634,8 @@ func compileMultipleTests(pkgs []*load.Package) {
 	p2testList := make(map[string][]string)
 	p2import := make(map[string]string)
 
+	uniqueImports := make(map[string]bool)
+	uniqueInternalImports := make(map[*load.Package]bool)
 	for p_index, p := range pkgs {
 		if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 			fmt.Printf("\n>>>>>>Skipping %d %s\n", p_index, p.Name)
@@ -649,9 +651,29 @@ func compileMultipleTests(pkgs []*load.Package) {
 		if combined_pmain == nil {
 			combined_pmain = pmain
 		} else {
+			/*
 			combined_pmain.Imports = append(combined_pmain.Imports, pmain.Imports...)
 			combined_pmain.Internal.Imports = append(combined_pmain.Internal.Imports, pmain.Internal.Imports...)
 			combined_pmain.Internal.RawImports = append(combined_pmain.Internal.RawImports, pmain.Internal.RawImports...)
+			*/
+			for _, importStr := range pmain.Imports {
+				hasImport := uniqueImports[importStr]
+				if !hasImport {
+					combined_pmain.Imports = append(combined_pmain.Imports, importStr)
+				}
+			}
+			for _, importPkg := range pmain.Internal.Imports {
+				hasPkg := uniqueInternalImports[importPkg]
+				if !hasPkg {
+					combined_pmain.Internal.Imports = append(combined_pmain.Internal.Imports, importPkg)
+				}
+			}
+		}
+		for _, importStr := range pmain.Imports {
+			uniqueImports[importStr] = true
+		}
+		for _, importPkg := range pmain.Internal.Imports {
+			uniqueInternalImports[importPkg] = true
 		}
 		for i := range tf.Tests {
 			packageKind := tf.Tests[i].Package
@@ -741,6 +763,27 @@ func compileMultipleTests(pkgs []*load.Package) {
 			//runAction = installAction // make sure runAction != nil even if not running test
 		}
 	}
+
+	/*
+	combined_pmain.Imports = nil
+	combined_pmain.Internal.Imports = nil
+	for k := range uniqueImports {
+		combined_pmain.Imports = append(combined_pmain.Imports, k)
+	}
+	for k := range uniqueInternalImports {
+		combined_pmain.Internal.Imports = append(combined_pmain.Internal.Imports, k)
+	}
+	combined_pmain.Internal.RawImports = str.StringList(combined_pmain.Imports)
+	*/
+
+	for _, imp := range combined_pmain.Imports {
+		fmt.Println("Import: ", imp)
+	}
+
+	for _, imp := range combined_pmain.Internal.Imports {
+		fmt.Printf("Internal.Import: %p %s\n", imp, imp.Name)
+	}
+
 	var b work.Builder
 	b.Init()
 
