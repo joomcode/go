@@ -775,7 +775,9 @@ func compileMultipleTests(pkgs []*load.Package) {
 	}
 	combined_pmain.Internal.RawImports = str.StringList(combined_pmain.Imports)
 	*/
-
+	if combined_pmain == nil {
+		return
+	}
 	for _, imp := range combined_pmain.Imports {
 		fmt.Println("Import: ", imp)
 	}
