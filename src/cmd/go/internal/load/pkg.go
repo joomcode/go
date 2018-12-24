@@ -948,7 +948,7 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
 	// as if it were generated into the testing directory tree
 	// (it's actually in a temporary directory outside any Go tree).
 	// This cleans up a former kludge in passing functionality to the testing package.
-	if strings.HasPrefix(p.ImportPath, "testing/internal") && len(*stk) >= 2 && (*stk)[len(*stk)-2] == "testmain" {
+	if strings.HasPrefix(p.ImportPath, "testing/internal") && len(*stk) >= 2 && strings.HasPrefix((*stk)[len(*stk)-2], "testmain") {
 		return p
 	}
 

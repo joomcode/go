@@ -15,6 +15,7 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"math/rand"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -55,6 +56,8 @@ type TestCover struct {
 func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
 	var imports, ximports []*Package
 	var stk ImportStack
+	//st	k.Push("./")
+	//defer stk.Pop()
 	stk.Push(p.ImportPath + " (test)")
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
@@ -195,7 +198,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 
 	// The generated main also imports testing, regexp, and os.
 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
-	stk.Push("testmain")
+	stk.Push(fmt.Sprintf("testmain-%d", rand.Int()))
 	deps := TestMainDeps // cap==len, so safe for append
 	for _, d := range LinkerDeps(p) {
 		deps = append(deps, d)
