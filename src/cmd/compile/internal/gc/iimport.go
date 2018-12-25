@@ -151,7 +151,8 @@ func iimport(pkg *types.Pkg, in *bio.Reader) {
 				Fatalf("conflicting package names %v and %v for path %q", pkg.Name, pkgName, pkg.Path)
 			}
 			if pkg.Height != pkgHeight {
-				Fatalf("conflicting package heights %v and %v for path %q", pkg.Height, pkgHeight, pkg.Path)
+				//Fatalf
+				fmt.Printf("GREPME conflicting package heights %v and %v for path %q : \n\n%#v\n\n%#v", pkg.Height, pkgHeight, pkg.Path, pkg, ir)
 			}
 		}
 

@@ -62,6 +62,8 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
 		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
+		fmt.Printf("Load import %s for %s\n", p1.ImportPath, p.Name)
+
 		if p1.Error != nil {
 			return nil, nil, nil, p1.Error
 		}
