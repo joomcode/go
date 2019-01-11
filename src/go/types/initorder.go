@@ -20,7 +20,7 @@ func (check *Checker) initOrder() {
 	pq := nodeQueue(dependencyGraph(check.objMap))
 	heap.Init(&pq)
 
-	const debug = false
+	const debug = true
 	if debug {
 		fmt.Printf("Computing initialization order for %s\n\n", check.pkg)
 		fmt.Println("Object dependency graph:")

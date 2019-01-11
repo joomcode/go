@@ -802,6 +802,7 @@ func (f *FlagSet) Var(value Value, name string, usage string) {
 			msg = fmt.Sprintf("%s flag redefined: %s", f.name, name)
 		}
 		fmt.Fprintln(f.Output(), msg)
+		// FIXME
 		//panic(msg) // Happens only if flags are declared with identical names
 	}
 	if f.formal == nil {
